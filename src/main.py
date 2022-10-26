@@ -16,7 +16,7 @@ def main():
     test_dir.add_child(FileNode('file4', datetime.now()))
     test_dir.add_child(FileNode('file5', datetime.now()))
 
-    FS_Node.print_directory_structure(test_dir)
+    FS_Node.print_directory_structure(root)
 
 
 if __name__ == '__main__':
