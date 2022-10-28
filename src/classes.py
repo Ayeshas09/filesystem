@@ -1,28 +1,33 @@
 import datetime
 import string
-from typing import List
+from typing import Dict, List
 import constants
+import math
+from abc import ABC
 
 
-class FS_Node:
+class FS_Node(ABC):
     def __init__(self, name: string, date_created: datetime) -> None:
         self.name = name
         self.date = date_created
         self.parent: FS_Node = None
 
 
-def print_directory_structure(node: FS_Node, level=0):
+def print_directory_structure(node: FS_Node, level=0, max_level=1):
+    if level > max_level:
+        return
+
     print('\t' * level, '--', node.name)
     if isinstance(node, DirectoryNode):
         for child in node.children:
-            print_directory_structure(child, level + 1)
+            print_directory_structure(child, level + 1, max_level)
 
 
 FS_Node.print_directory_structure = staticmethod(print_directory_structure)
 
 
 class FileNode(FS_Node):
-    def __init__(self, name: string, date_created: datetime) -> None:
+    def __init__(self, name: string, date_created: datetime = datetime.datetime.now()) -> None:
         super().__init__(name, date_created)
         self.starting_addr = 0
         self.size = 0
@@ -68,10 +73,10 @@ class Memory:
         self.space_used = 0
         self.total_size = total_size
         self.curr_ptr = 0
+        self.memory = [0] * math.ceil(total_size)
+        self.allocations: Dict[int: int] = {}
 
-        self.allocations = {}
-
-    def allocate(self, size):
+    def allocate(self, size: int):
         if self.space_used + size > self.total_size:
             raise ValueError('Not enough space in memory')
 
@@ -82,7 +87,27 @@ class Memory:
         self.allocations[addr] = size
         return addr
 
-    def deallocate(self, addr):
+    def read_file(self, addr: int):
+        size = self.allocations[addr]
+        return self.memory[addr:addr+size]
+
+    def write_file(self, addr: int, data: List[int]):
+        size = self.allocations[addr]
+        if len(data) > size:
+            raise ValueError('Data is too large to fit in memory')
+            # TODO: reallocate
+
+        self.memory[addr:addr+size] = data
+
+    def reallocate(self, addr: int, new_size: int):
+        if self.space_used - self.allocations[addr] + new_size > self.total_size:
+            raise ValueError('Not enough space in memory')
+
+        self.space_used -= self.allocations[addr]
+        self.space_used += new_size
+        self.allocations[addr] = new_size
+
+    def deallocate(self, addr: int):
         size = self.allocations[addr]
         self.space_used -= size
         del self.allocations[addr]
