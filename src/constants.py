@@ -2,7 +2,7 @@
 import math
 
 
-FILENAME = '../storage.dat'
+FILENAME = './storage.dat'
 
 # 1 MB
 TOTAL_MEMORY_SIZE: int = math.pow(2, 20)
