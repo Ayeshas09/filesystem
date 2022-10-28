@@ -18,3 +18,12 @@ def display_menu():
         print(f'-- {key}  :  {value}')
 
     print('########################################')
+
+
+def string_to_bytes(string):
+    return list([ord(char) for char in string])
+
+
+def bytes_to_string(bytes):
+    return ''.join([chr(byte) for byte in bytes])
+
