@@ -110,7 +110,7 @@ def user_input():
     currentDir = root
 
     while True:
-        command = input('Enter the command: ')
+        command = input('Enter the command: ').strip()
 
         if command.lower() == 'exit':
             break
@@ -124,7 +124,6 @@ def user_input():
             mkdir(currentDir, name)
 
         elif 'ls' in command:
-            # FS_Node.print_directory_structure(currentDir)
             currentDir.print_directory_structure()
 
         elif 'rm' in command:
