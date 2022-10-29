@@ -1,3 +1,4 @@
+import datetime
 
 menu = {
     'touch <filename>': 'Create a new file',
@@ -27,3 +28,6 @@ def string_to_bytes(string):
 def bytes_to_string(bytes):
     return ''.join([chr(byte) for byte in bytes])
 
+
+def get_datetime_object(date_string: str):
+    return datetime.datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S.%f')
