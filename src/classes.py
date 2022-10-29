@@ -1,10 +1,11 @@
-from dataclasses import dataclass
 import datetime
-import string
-from typing import Dict, List
-import constants
 import math
+import string
 from abc import ABC
+from typing import Dict, List
+
+import constants
+import utils
 
 
 class FS_Node(ABC):
@@ -13,24 +14,24 @@ class FS_Node(ABC):
         self.date = date_created
         self.parent: FS_Node = None
 
+    def print_directory_structure(self, level=0, max_level=1):
+        if level > max_level:
+            return
+
+        print('\t' * level, '--', self.name)
+        if isinstance(self, DirectoryNode):
+            for child in self.children:
+                child.print_directory_structure(level + 1, max_level)
+
     def __dict__(self):
         return self.name
 
     def __str__(self) -> str:
         return self.name
 
-
-def print_directory_structure(node: FS_Node, level=0, max_level=1):
-    if level > max_level:
-        return
-
-    print('\t' * level, '--', node.name)
-    if isinstance(node, DirectoryNode):
-        for child in node.children:
-            print_directory_structure(child, level + 1, max_level)
-
-
-FS_Node.print_directory_structure = staticmethod(print_directory_structure)
+    @classmethod
+    def from_dict(cls, data):
+        return data.get('type') == DirectoryNode.__name__ and DirectoryNode.from_dict(data) or FileNode.from_dict(data)
 
 
 class FileNode(FS_Node):
@@ -62,10 +63,22 @@ class FileNode(FS_Node):
             'parent': str(self.parent) if self.parent else None,
             'starting_addr': self.starting_addr,
             'size': self.size,
+
+            'type': __class__.__name__
         }
 
     def __str__(self) -> str:
         return super().__str__()
+
+    @classmethod
+    def from_dict(cls, data):
+        file = FileNode(data['name'], utils.get_datetime_object(
+            data['date_created']), utils.get_datetime_object(data['date_modified']))
+        file.parent = data['parent']
+        file.starting_addr = data['starting_addr']
+        file.size = data['size']
+
+        return file
 
 
 class DirectoryNode(FS_Node):
@@ -94,10 +107,26 @@ class DirectoryNode(FS_Node):
             'date_created': str(self.date),
             'parent': str(self.parent) if self.parent else None,
             'children': self.children,
+
+            'type': __class__.__name__
         }
 
     def __str__(self) -> str:
         return super().__str__()
+
+    @classmethod
+    def from_dict(cls, data):
+        dir = DirectoryNode(
+            data['name'], utils.get_datetime_object(data['date_created']))
+
+        for child in data['children']:
+            if child['type'] == FileNode.__name__:
+                dir.add_child(FileNode.from_dict(child))
+            elif child['type'] == DirectoryNode.__name__:
+                dir.add_child(DirectoryNode.from_dict(child))
+
+        return dir
+
 
 class Memory:
     def __init__(self, total_size=constants.TOTAL_MEMORY_SIZE) -> None:
