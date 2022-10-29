@@ -1,8 +1,10 @@
 import time
 from datetime import datetime
+from typing import List
 
 import file_io
 from classes import DirectoryNode, FileNode, Memory
+from utils import bytes_to_string, split_strip, string_to_bytes
 
 
 def touch(currentDir, name: str):
@@ -19,7 +21,6 @@ def remove(currentDir, name):
     if currentDir.get_child(name):
         child = currentDir.get_child(name)
         currentDir.remove_child(child)
-        del child
         print('Deleted successfully!')
 
     else:
@@ -76,12 +77,53 @@ def move(currentDir, name, new_name):
 
 def change_dir(currentDir, path):
     if path == '..':
-        return currentDir.parent
+        return currentDir.parent if currentDir.parent else currentDir
 
     elif currentDir.get_child(path):
         return currentDir.get_child(path)
 
     print("No such directory exists")
+    return currentDir
+
+
+def write_file(currentDir: DirectoryNode, filename: str, content: List[str], memory: Memory):
+    file: FileNode = currentDir.get_child(filename)
+
+    if not file or not isinstance(file, FileNode):
+        print('No such file exists!')
+        return
+
+    content_bytes = string_to_bytes(content)
+    if file.starting_addr < 0 and file.size == 0:
+        try:
+            file.starting_addr = memory.allocate(len(content_bytes))
+            file.size = len(content)
+        except ValueError:
+            print('Not enough memory!')
+            return
+
+    file.starting_addr = memory.write_file(
+        file.starting_addr, content_bytes)
+
+    file.date_modified = datetime.now()
+    print('File written successfully!')
+
+
+def display_file(currentDir: DirectoryNode, filename: str, memory: Memory):
+    file: FileNode = currentDir.get_child(filename)
+
+    if not file or not isinstance(file, FileNode):
+        print('No such file exists!')
+        return
+
+    if file.starting_addr < 0 and file.size == 0:
+        print()
+        return
+
+    content = bytes_to_string(memory.read_file(
+        file.starting_addr, num_bytes=file.size))
+
+    print(content)
 
 
 def exit_program(structure: DirectoryNode, memory: Memory):
@@ -106,11 +148,11 @@ menu = {
 
 
 def display_menu():
-    print('########## Available commands ##########')
+    print('---------- Available commands ----------')
     for key, value in menu.items():
         print(f'-- {key}  :  {value}')
 
-    print('########################################')
+    print('----------------------------------------')
 
 
 def user_input(root: DirectoryNode, memory: Memory):
@@ -120,30 +162,39 @@ def user_input(root: DirectoryNode, memory: Memory):
     while True:
         command = input('Enter the command: ').strip()
 
-        if command.lower() == 'exit':
+        if command.startswith('exit'):
             exit_program(root, memory)
-            break
 
-        elif 'touch' in command:
-            _, name = command.split(' ')
-            touch(currentDir, name)
+        elif command.startswith('touch'):
+            _, filename = split_strip(command, ' ')
+            touch(currentDir, filename)
 
-        elif 'mkdir' in command:
-            _, name = command.split(' ')
-            mkdir(currentDir, name)
+        elif command.startswith('mkdir'):
+            _, dirname = split_strip(command, ' ')
+            mkdir(currentDir, dirname)
 
-        elif 'ls' in command:
+        elif command.startswith('ls'):
             currentDir.print_directory_structure()
 
-        elif 'rm' in command:
-            _, name = command.split(' ')
+        elif command.startswith('rm'):
+            _, name = split_strip(command, ' ')
             remove(currentDir, name)
 
-        elif 'mv' in command:
-            _, name, destination = command.split(' ')
+        elif command.startswith('mv'):
+            _, name, destination = split_strip(command, ' ')
             move(currentDir, name, destination)
 
-        elif 'cd' in command:
-            _, path = command.split(' ')
+        elif command.startswith('cd'):
+            _, path = split_strip(command, ' ')
 
             currentDir = change_dir(currentDir, path)
+
+        elif 'wf' in command:
+            _, filename, content = split_strip(command, ' ', 2)
+
+            write_file(currentDir, filename, content, memory)
+
+        elif 'cat' in command:
+            _, filename = split_strip(command, ' ')
+
+            display_file(currentDir, filename, memory)

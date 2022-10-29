@@ -2,7 +2,7 @@ import signal
 from datetime import datetime
 
 import file_io
-from classes import DirectoryNode, Memory
+from classes import DirectoryNode, FS_Node, Memory
 from menu import display_menu, exit_program, user_input
 
 root: DirectoryNode = None
@@ -17,6 +17,8 @@ def main():
     if not root or not memory:
         root = DirectoryNode('root', datetime.now())
         memory = Memory()
+
+    FS_Node.set_memory(memory)
 
     display_menu()
     user_input(root, memory)

@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Tuple
 
 import classes
@@ -14,12 +15,15 @@ def save_to_file(filename=constants.FILENAME, structure: classes.FS_Node = None,
 
 
 def load_from_file(filename=constants.FILENAME) -> Tuple[classes.FS_Node | None, classes.Memory | None]:
-    with open(filename, 'r') as f:
+    if not os.path.isfile(filename):
+        return None, None
 
+    with open(filename, 'r') as f:
         try:
             data = json.load(f)
-            structure = classes.FS_Node.from_dict(data['structure'])
             memory = classes.Memory.from_dict(data['memory'])
+            structure = classes.FS_Node.from_dict(data['structure'])
+
         except json.decoder.JSONDecodeError or KeyError:
             structure = None
             memory = None
