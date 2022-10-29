@@ -1,6 +1,4 @@
-
 import math
-
 
 FILENAME = './storage.dat'
 
