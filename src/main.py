@@ -1,9 +1,9 @@
-from datetime import datetime
-from classes import DirectoryNode, Memory
-import file_io
 import signal
-from menu import display_menu, user_input, exit_program
+from datetime import datetime
 
+import file_io
+from classes import DirectoryNode, Memory
+from menu import display_menu, exit_program, user_input
 
 root: DirectoryNode = None
 memory: Memory = None
@@ -18,8 +18,6 @@ def main():
         root = DirectoryNode('root', datetime.now())
         memory = Memory()
 
-    signal.signal(signal.SIGINT, handle_sigint)
-
     display_menu()
     user_input(root, memory)
 
@@ -29,4 +27,5 @@ def handle_sigint(sig, frame):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, handle_sigint)
     main()
