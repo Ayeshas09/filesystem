@@ -13,8 +13,15 @@ def save_to_file(filename=constants.FILENAME, structure: classes.FS_Node = None,
         }, f, default=lambda o: o.__dict__())
 
 
-def load_from_file(filename=constants.FILENAME) -> Tuple[classes.FS_Node, classes.Memory]:
+def load_from_file(filename=constants.FILENAME) -> Tuple[classes.FS_Node | None, classes.Memory | None]:
     with open(filename, 'r') as f:
-        data = json.load(f)
 
-        return classes.FS_Node.from_dict(data['structure']), classes.Memory.from_dict(data['memory'])
+        try:
+            data = json.load(f)
+            structure = classes.FS_Node.from_dict(data['structure'])
+            memory = classes.Memory.from_dict(data['memory'])
+        except json.decoder.JSONDecodeError or KeyError:
+            structure = None
+            memory = None
+
+        return structure, memory
