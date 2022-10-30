@@ -15,7 +15,7 @@ def main():
     root, memory = file_io.load_from_file()
 
     if not root or not memory:
-        root = DirectoryNode('root', datetime.now())
+        root = DirectoryNode('/', datetime.now())
         memory = Memory()
 
     FS_Node.set_memory(memory)
