@@ -128,7 +128,6 @@ def display_file(currentDir: DirectoryNode, filename: str, memory: Memory):
 
 def exit_program(structure: DirectoryNode, memory: Memory):
     print('Persisting data...')
-    time.sleep(0.5)
 
     file_io.save_to_file(structure=structure, memory=memory)
     exit(0)
