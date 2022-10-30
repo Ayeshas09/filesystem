@@ -7,6 +7,8 @@ from classes import DirectoryNode, FS_Node, FileNode, Memory
 from utils import bytes_to_string, split_strip, string_to_bytes
 
 menu = {
+    'help': 'Display this menu',
+
     'touch <filename>': 'Create a new file',
     'rm <filename | dirname>': 'Remove a file',
     'mkdir <dirname>': 'Create a new directory',
@@ -39,7 +41,10 @@ def user_input(root: DirectoryNode, memory: Memory):
     while True:
         command = input('Enter the command: ').strip()
 
-        if command.startswith('exit'):
+        if command == 'help':
+            display_menu()
+
+        elif command.startswith('exit'):
             exit_program(root, memory)
 
         elif command.startswith('touch'):
