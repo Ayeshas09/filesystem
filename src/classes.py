@@ -136,7 +136,7 @@ class FS_Node(ABC):
 
     def __init__(self, name: string, date_created: datetime) -> None:
         self.name = name
-        self.date = date_created
+        self.date_created = date_created
         self.parent: FS_Node = None
 
     def print_directory_structure(self, level=0, max_level=1):
@@ -187,7 +187,7 @@ class DirectoryNode(FS_Node):
     def __dict__(self):
         return {
             'name': self.name,
-            'date_created': str(self.date),
+            'date_created': str(self.date_created),
             'parent': str(self.parent) if self.parent else None,
             'children': self.children,
 
@@ -240,7 +240,7 @@ class FileNode(FS_Node):
     def __dict__(self):
         return {
             'name': self.name,
-            'date_created': str(self.date),
+            'date_created': str(self.date_created),
             'date_modified': str(self.date_modified),
             'parent': str(self.parent) if self.parent else None,
             'starting_addr': self.starting_addr,
