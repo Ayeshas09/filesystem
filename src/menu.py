@@ -3,8 +3,113 @@ from datetime import datetime
 from typing import List
 
 import file_io
-from classes import DirectoryNode, FileNode, Memory
+from classes import DirectoryNode, FS_Node, FileNode, Memory
 from utils import bytes_to_string, split_strip, string_to_bytes
+
+menu = {
+    'touch <filename>': 'Create a new file',
+    'rm <filename | dirname>': 'Remove a file',
+    'mkdir <dirname>': 'Create a new directory',
+    'cd <path>': 'Change directory',
+    'mv <in filename | dirname> <out filename | dirname>': 'Move a file or directory',
+    'wf <filename> <content>': 'Write to a file',
+    'af <filename> <content>': 'Append to a file',
+    'mwf <filename> <starting byte> <content length> <writing byte>': 'Move content within a file',
+
+    'cat <filename>': 'Read from a file',
+    'rf <filename> <starting byte> <content length>': 'Read from a file from a specific byte',
+
+    'ls <path>': 'List files and directories',
+    'exit': 'Exit the program'
+}
+
+
+def display_menu():
+    print('---------- Available Commands ----------')
+    for key, value in menu.items():
+        print(f'-- {key}  :  {value}')
+
+    print('----------------------------------------')
+
+
+def user_input(root: DirectoryNode, memory: Memory):
+
+    currentDir = root
+
+    while True:
+        command = input('Enter the command: ').strip()
+
+        if command.startswith('exit'):
+            exit_program(root, memory)
+
+        elif command.startswith('touch'):
+            _, filename = split_strip(command, ' ')
+            touch(currentDir, filename)
+
+        elif command.startswith('mkdir'):
+            _, dirname = split_strip(command, ' ')
+            mkdir(currentDir, dirname)
+
+        elif command.startswith('ls'):
+            if command == 'ls':
+                currentDir.print_directory_structure()
+
+            else:
+                _, path = command.split(' ')
+                ls(currentDir, path)
+
+        elif command.startswith('rm'):
+            _, name = split_strip(command, ' ')
+            remove(currentDir, name)
+
+        elif command.startswith('mv'):
+            _, name, destination = split_strip(command, ' ')
+            move(currentDir, name, destination)
+
+        elif command.startswith('cd'):
+            _, path = split_strip(command, ' ')
+
+            currentDir = change_dir(currentDir, path)
+
+        elif command.startswith('wf'):
+            segments = split_strip(command, ' ')
+            filename = segments[1]
+            content = ' '.join(segments[2:])
+
+            write_file(currentDir, filename, content)
+
+        elif command.startswith('af'):
+            segments = split_strip(command, ' ')
+            filename = segments[1]
+            content = ' '.join(segments[2:])
+
+            append_file(currentDir, filename, content)
+
+        elif command.startswith('mwf'):
+            segments = split_strip(command, ' ')
+            filename = segments[1]
+            starting_byte = int(segments[2])
+            content_length = int(segments[3])
+            writing_byte = int(segments[4])
+
+            move_within_file(currentDir, filename, starting_byte,
+                             content_length, writing_byte)
+
+        elif command.startswith('cat'):
+            _, filename = split_strip(command, ' ')
+
+            display_file(currentDir, filename)
+
+        elif command.startswith('rf'):
+            segments = split_strip(command, ' ')
+            filename = segments[1]
+            starting_byte = int(segments[2])
+            content_length = int(segments[3])
+
+            display_file(currentDir, filename, starting_byte, content_length)
+
+        else:
+            print('Invalid command!')
 
 
 def touch(currentDir, name: str):
@@ -100,7 +205,9 @@ def change_dir(currentDir, path):
     return currentDir
 
 
-def write_file(currentDir: DirectoryNode, filename: str, content: List[str], memory: Memory):
+def write_file(currentDir: DirectoryNode, filename: str, content: List[str]):
+    memory = FS_Node.memory
+
     file: FileNode = currentDir.get_child(filename)
 
     if not file or not isinstance(file, FileNode):
@@ -123,7 +230,59 @@ def write_file(currentDir: DirectoryNode, filename: str, content: List[str], mem
     print('File written successfully!')
 
 
-def display_file(currentDir: DirectoryNode, filename: str, memory: Memory):
+def append_file(currentDir: DirectoryNode, filename: str, new_content: List[str]):
+    memory = FS_Node.memory
+    file: FileNode = currentDir.get_child(filename)
+
+    if not file or not isinstance(file, FileNode):
+        print('No such file exists!')
+        return
+
+    new_content_bytes = string_to_bytes(new_content)
+    if file.starting_addr < 0 and file.size == 0:
+        try:
+            file.starting_addr = memory.allocate(len(new_content_bytes))
+        except ValueError:
+            print('Not enough memory!')
+            return
+
+    file.starting_addr = memory.append_file(
+        file.starting_addr, new_content_bytes)
+
+    file.size += len(new_content)
+    file.date_modified = datetime.now()
+    print('File appended successfully!')
+
+
+def move_within_file(currentDir: DirectoryNode, filename: str, starting_byte: int, content_length: int, writing_byte: int):
+    memory = FS_Node.memory
+    file: FileNode = currentDir.get_child(filename)
+
+    if not file or not isinstance(file, FileNode):
+        print('No such file exists!')
+        return
+
+    if file.starting_addr < 0 and file.size == 0:
+        print('File is empty!')
+        return
+
+    if starting_byte + content_length > file.size:
+        print('Invalid starting byte and content length!')
+        return
+
+    if writing_byte > file.size:
+        print('Invalid writing byte!')
+        return
+
+    file.starting_addr = memory.move_within_file(
+        file.starting_addr, starting_byte, content_length, writing_byte)
+
+    file.date_modified = datetime.now()
+    print('File moved successfully!')
+
+
+def display_file(currentDir: DirectoryNode, filename: str, starting_byte: int = 0, content_length: int = -1):
+    memory = FS_Node.memory
     file: FileNode = currentDir.get_child(filename)
 
     if not file or not isinstance(file, FileNode):
@@ -134,8 +293,12 @@ def display_file(currentDir: DirectoryNode, filename: str, memory: Memory):
         print()
         return
 
-    content = bytes_to_string(memory.read_file(
-        file.starting_addr, num_bytes=file.size))
+    content = bytes_to_string(
+        memory.read_file(
+            file.starting_addr,
+            starting_byte=starting_byte,
+            num_bytes=file.size if content_length == -1 else content_length)
+    )
 
     print(content)
 
@@ -145,76 +308,3 @@ def exit_program(structure: DirectoryNode, memory: Memory):
 
     file_io.save_to_file(structure=structure, memory=memory)
     exit(0)
-
-
-menu = {
-    'touch <filename>': 'Create a new file',
-    'rm <filename | dirname>': 'Remove a file',
-    'mkdir <dirname>': 'Create a new directory',
-    'cd <path>': 'Change directory',
-    'mv <in filename | dirname> <out filename | dirname>': 'Move a file or directory',
-    'wf <filename> <content>': 'Write to a file',
-    'cat <filename>': 'Read from a file',
-    'ls <path>': 'List files and directories',
-    'exit': 'Exit the program'
-}
-
-
-def display_menu():
-    print('---------- Available commands ----------')
-    for key, value in menu.items():
-        print(f'-- {key}  :  {value}')
-
-    print('----------------------------------------')
-
-
-def user_input(root: DirectoryNode, memory: Memory):
-
-    currentDir = root
-
-    while True:
-        command = input('Enter the command: ').strip()
-
-        if command.startswith('exit'):
-            exit_program(root, memory)
-
-        elif command.startswith('touch'):
-            _, filename = split_strip(command, ' ')
-            touch(currentDir, filename)
-
-        elif command.startswith('mkdir'):
-            _, dirname = split_strip(command, ' ')
-            mkdir(currentDir, dirname)
-
-        elif command.startswith('ls'):
-            if command == 'ls':
-                currentDir.print_directory_structure()
-
-            else:
-                _, path = command.split(' ')
-                ls(currentDir, path)
-
-        elif command.startswith('rm'):
-            _, name = split_strip(command, ' ')
-            remove(currentDir, name)
-
-        elif command.startswith('mv'):
-            _, name, destination = split_strip(command, ' ')
-            move(currentDir, name, destination)
-
-        elif command.startswith('cd'):
-            _, path = split_strip(command, ' ')
-
-            currentDir = change_dir(currentDir, path)
-
-        elif command.startswith('wf'):
-            segments = split_strip(command, ' ')
-            filename = segments[1]
-            content = ' '.join(segments[2:])
-
-            write_file(currentDir, filename, content, memory)
-
-        elif command.startswith('cat'):
-            _, filename = split_strip(command, ' ')
-
-            display_file(currentDir, filename, memory)

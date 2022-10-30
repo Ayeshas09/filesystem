@@ -38,11 +38,12 @@ class Memory:
             raise ValueError('Not enough space in memory')
 
         self.allocations[curr_ptr] = size
+        self.used_per_allocation[curr_ptr] = 0
         return curr_ptr
 
     def read_file(self, addr: int, starting_byte=0, num_bytes=None):
         size = self.allocations[addr]
-        return self.memory[addr:addr+size][starting_byte:num_bytes]
+        return self.memory[addr:addr+size][starting_byte:starting_byte + num_bytes]
 
     def truncate(self, addr: int, new_size: int):
         if new_size > self.allocations[addr]:
@@ -69,6 +70,22 @@ class Memory:
 
         previous_data = self.read_file(addr, 0, previous_data_length)
         return self.write_file(new_addr, previous_data + data)
+
+    def move_within_file(self, addr: int, starting_byte: int, content_length: int, writing_byte: int):
+        if starting_byte + content_length > self.allocations[addr]:
+            raise ValueError(
+                'Starting byte + content length must be less than or equal to file size')
+
+        if writing_byte + content_length > self.allocations[addr]:
+            raise ValueError(
+                'Writing byte + content length must be less than or equal to file size')
+
+        data = self.read_file(addr, starting_byte,
+                              starting_byte + content_length)
+        self.memory[addr + writing_byte:addr +
+                    writing_byte + content_length] = data
+
+        return addr
 
     def reallocate(self, addr: int, new_size: int):
         if self.space_used - self.allocations[addr] + new_size > self.total_size:
