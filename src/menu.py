@@ -37,6 +37,20 @@ def mkdir(currentDir, name: str):
         return new_dir
 
 
+def ls(currentDir, path):
+    if path == '..':
+        if currentDir.parent:
+            currentDir.parent.print_directory_structure()
+        else:
+            print('No such path exists!')
+
+    else:
+        if currentDir.get_child(path):
+            currentDir.get_child(path).print_directory_structure()
+        else:
+            print('No such path exists!')
+
+
 def move(currentDir, name, new_name):
     if currentDir.get_child(name):
         child = currentDir.get_child(name)
@@ -174,7 +188,12 @@ def user_input(root: DirectoryNode, memory: Memory):
             mkdir(currentDir, dirname)
 
         elif command.startswith('ls'):
-            currentDir.print_directory_structure()
+            if command == 'ls':
+                currentDir.print_directory_structure()
+
+            else:
+                _, path = command.split(' ')
+                ls(currentDir, path)
 
         elif command.startswith('rm'):
             _, name = split_strip(command, ' ')
