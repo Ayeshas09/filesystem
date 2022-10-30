@@ -189,12 +189,14 @@ def user_input(root: DirectoryNode, memory: Memory):
 
             currentDir = change_dir(currentDir, path)
 
-        elif 'wf' in command:
-            _, filename, content = split_strip(command, ' ', 2)
+        elif command.startswith('wf'):
+            segments = split_strip(command, ' ')
+            filename = segments[1]
+            content = ' '.join(segments[2:])
 
             write_file(currentDir, filename, content, memory)
 
-        elif 'cat' in command:
+        elif command.startswith('cat'):
             _, filename = split_strip(command, ' ')
 
             display_file(currentDir, filename, memory)

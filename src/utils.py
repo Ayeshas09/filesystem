@@ -15,7 +15,6 @@ def get_datetime_object(date_string: str):
 
 
 def split_strip(string: str, separator: str, num: int = -1) -> List[str]:
-    # remove empty strings
     ret = [s for s in string.split(separator) if s]
     if num != -1:
         return ret[:num+1]
