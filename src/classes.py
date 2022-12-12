@@ -9,13 +9,17 @@ import utils
 
 
 class Memory:
+    OFFSET_BITS = int(math.log2(constants.BLOCK_SIZE))
+    BLOCK_BITS = int(math.log2(constants.TOTAL_BLOCKS))
+
     def __init__(self, total_size=constants.TOTAL_MEMORY_SIZE) -> None:
         self.space_used = 0
         self.total_size = int(total_size)
-        # self.curr_ptr = 0
-        self.memory = [0] * math.ceil(total_size)
+        self.memory: List[List[int]] = [[[0] * constants.BLOCK_SIZE]
+                                        for _ in range(constants.TOTAL_BLOCKS)]
 
-        # starting address -> size
+        # addr -> size
+        # addr [4 bits for block number, self.OFFSET_BITS bits for offset]
         self.allocations: Dict[int, int] = {}
         self.used_per_allocation: Dict[int, int] = {}
 
@@ -23,27 +27,69 @@ class Memory:
         if self.space_used + size > self.total_size:
             raise ValueError('Not enough space in memory')
 
-        self.space_used += size
+        if size > constants.MAX_FILE_SIZE:
+            raise ValueError(
+                f'File size too large (max {constants.MAX_FILE_SIZE} bytes)')
 
-        curr_ptr = 0
-        for allocation_addr in sorted(self.allocations.keys()):
-            if curr_ptr < allocation_addr:
-                if curr_ptr + size <= allocation_addr:
-                    self.allocations[curr_ptr] = size
-                    return curr_ptr
+        for curr_block in range(constants.TOTAL_BLOCKS):
+            curr_block_allocs = list(filter(lambda addr: (
+                addr >> self.OFFSET_BITS) == curr_block, self.allocations.keys()))
 
-            curr_ptr = allocation_addr + self.allocations[allocation_addr]
+            # No allocations in current block
+            if len(curr_block_allocs) == 0:
+                new_addr = curr_block << self.OFFSET_BITS
+                self.allocations[new_addr] = size
+                self.used_per_allocation[new_addr] = 0
+                self.space_used += size
 
-        if curr_ptr + size > self.total_size:
-            raise ValueError('Not enough space in memory')
+                return new_addr
 
-        self.allocations[curr_ptr] = size
-        self.used_per_allocation[curr_ptr] = 0
-        return curr_ptr
+            # Allocations in current block
+            curr_block_allocs = sorted(curr_block_allocs)
+            for i in range(len(curr_block_allocs)):
+                # For the first allocation in the block
+                if i == 0:
+                    if curr_block_allocs[i] - curr_block * constants.BLOCK_SIZE >= size:
+                        new_addr = curr_block << self.OFFSET_BITS
+                        self.allocations[new_addr] = size
+                        self.used_per_allocation[new_addr] = 0
+                        self.space_used += size
+
+                        return new_addr
+
+                # For the last allocation in the block
+                if i == len(curr_block_allocs) - 1:
+                    if curr_block_allocs[i] + self.allocations[curr_block_allocs[i]] + size <= (curr_block + 1) * constants.BLOCK_SIZE:
+                        new_addr = curr_block_allocs[i] + \
+                            self.allocations[curr_block_allocs[i]]
+                        self.allocations[new_addr] = size
+                        self.used_per_allocation[new_addr] = 0
+                        self.space_used += size
+
+                        return new_addr
+                    continue
+
+                # For all other allocations in the block
+                if curr_block_allocs[i+1] - (curr_block_allocs[i] + self.allocations[curr_block_allocs[i]]) >= size:
+                    new_addr = curr_block_allocs[i] + \
+                        self.allocations[curr_block_allocs[i]]
+                    self.allocations[new_addr] = size
+                    self.used_per_allocation[new_addr] = 0
+                    self.space_used += size
+
+                    return new_addr
+
+        raise ValueError('Not enough space in memory')
 
     def read_file(self, addr: int, starting_byte=0, num_bytes=None):
         size = self.allocations[addr]
-        return self.memory[addr:addr+size][starting_byte:starting_byte + num_bytes]
+        if num_bytes is None:
+            num_bytes = self.used_per_allocation[addr]
+
+        block = addr >> self.OFFSET_BITS
+        offset = addr & ((2 ** self.OFFSET_BITS) - 1)
+
+        return self.memory[block][offset + starting_byte:offset + starting_byte + num_bytes]
 
     def truncate(self, addr: int, new_size: int):
         if new_size > self.allocations[addr]:
@@ -58,7 +104,9 @@ class Memory:
         if len(data) > size:
             addr = self.reallocate(addr, len(data))
 
-        self.memory[addr:addr+size] = data
+        block = addr >> self.OFFSET_BITS
+        offset = addr & ((2 ** self.OFFSET_BITS) - 1)
+        self.memory[block][offset:len(data)] = data
         self.used_per_allocation[addr] = len(data)
         return addr
 
@@ -80,10 +128,14 @@ class Memory:
             raise ValueError(
                 'Writing byte + content length must be less than or equal to file size')
 
+        block = addr >> self.OFFSET_BITS
+        offset = addr & ((2 ** self.OFFSET_BITS) - 1)
+
         data = self.read_file(addr, starting_byte,
                               starting_byte + content_length)
-        self.memory[addr + writing_byte:addr +
-                    writing_byte + content_length] = data
+
+        self.memory[block][offset + writing_byte:offset +
+                           writing_byte + content_length] = data
 
         return addr
 
@@ -132,18 +184,23 @@ class Memory:
 
 
 class FS_Node(ABC):
-    memory: Memory = None
+    memory: Memory
 
     def __init__(self, name: string, date_created: datetime) -> None:
         self.name = name
         self.date_created = date_created
         self.parent: FS_Node = None
 
-    def print_directory_structure(self, level=0, max_level=1):
+    def print_directory_structure(self, level=0, max_level=10):
         if level > max_level:
             return
 
-        print('\t' * level, '--', self.name)
+        print('\t' * level,
+              '--',
+              utils.TColors.OKCYAN + utils.TColors.BOLD if isinstance(
+                  self, DirectoryNode) else '',
+              self.name,
+              utils.TColors.ENDC)
         if isinstance(self, DirectoryNode):
             for child in self.children:
                 child.print_directory_structure(level + 1, max_level)
@@ -153,10 +210,6 @@ class FS_Node(ABC):
 
     def __str__(self) -> str:
         return self.name
-
-    @staticmethod
-    def set_memory(memory: Memory):
-        FS_Node.memory = memory
 
     @classmethod
     def from_dict(cls, data):
@@ -175,7 +228,7 @@ class DirectoryNode(FS_Node):
 
     def remove_child(self, child: FS_Node):
         self.children.remove(child)
-        child.__del__()
+        # child.__del__()
 
     def get_child(self, name: str):
         for child in self.children:

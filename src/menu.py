@@ -204,7 +204,12 @@ def change_dir(currentDir, path):
         return currentDir.parent if currentDir.parent else currentDir
 
     elif currentDir.get_child(path):
-        return currentDir.get_child(path)
+        memory = FS_Node.memory
+
+        newDir = currentDir.get_child(path)
+        newDir.memory = memory
+
+        return newDir
 
     print("No such directory exists")
     return currentDir
