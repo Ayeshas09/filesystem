@@ -2,6 +2,7 @@ import datetime
 import math
 import string
 from abc import ABC
+import sys
 from typing import Dict, List
 
 import constants
@@ -15,7 +16,7 @@ class Memory:
     def __init__(self, total_size=constants.TOTAL_MEMORY_SIZE) -> None:
         self.space_used = 0
         self.total_size = int(total_size)
-        self.memory: List[List[int]] = [[[0] * constants.BLOCK_SIZE]
+        self.memory: List[List[int]] = [[0] * constants.BLOCK_SIZE
                                         for _ in range(constants.TOTAL_BLOCKS)]
 
         # addr -> size
@@ -106,7 +107,10 @@ class Memory:
 
         block = addr >> self.OFFSET_BITS
         offset = addr & ((2 ** self.OFFSET_BITS) - 1)
-        self.memory[block][offset:len(data)] = data
+
+        # self.memory[block][offset:len(data)] = data
+        self.memory[block] = self.memory[block][:offset] + \
+            data + self.memory[block][offset + len(data):]
         self.used_per_allocation[addr] = len(data)
         return addr
 
@@ -157,6 +161,17 @@ class Memory:
 
     def get_free_space(self):
         return self.total_size - self.space_used
+
+    def show_memory_map(self, outfile=sys.stdout):
+        print("Memory Map:", file=outfile)
+        for i, (addr, size) in enumerate(self.allocations.items()):
+            print(
+                f"Allocation#{i+1} | Address: {addr}, Size: {size}, Used: {self.used_per_allocation[addr]}", file=outfile)
+
+    def show_memory_layout(self, outfile=sys.stdout):
+        print("Memory Layout:", file=outfile)
+        for i, block in enumerate(self.memory):
+            print(f"Block {i}: {block}", file=outfile)
 
     def __dict__(self):
         return {
