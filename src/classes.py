@@ -23,6 +23,7 @@ class Memory:
         # addr [4 bits for block number, self.OFFSET_BITS bits for offset]
         self.allocations: Dict[int, int] = {}
         self.used_per_allocation: Dict[int, int] = {}
+        self.free_blocks = [i for i in range(constants.TOTAL_BLOCKS)]
 
     def allocate(self, size: int):
         if self.space_used + size > self.total_size:
@@ -32,55 +33,17 @@ class Memory:
             raise ValueError(
                 f'File size too large (max {constants.MAX_FILE_SIZE} bytes)')
 
-        for curr_block in range(constants.TOTAL_BLOCKS):
-            curr_block_allocs = list(filter(lambda addr: (
-                addr >> self.OFFSET_BITS) == curr_block, self.allocations.keys()))
+        if len(self.free_blocks) == 0:
+            raise ValueError('No free blocks available')
 
-            # No allocations in current block
-            if len(curr_block_allocs) == 0:
-                new_addr = curr_block << self.OFFSET_BITS
-                self.allocations[new_addr] = size
-                self.used_per_allocation[new_addr] = 0
-                self.space_used += size
+        block = self.free_blocks.pop(0)
+        addr = block << self.OFFSET_BITS
 
-                return new_addr
+        self.allocations[addr] = size
+        self.used_per_allocation[addr] = 0
+        self.space_used += size
 
-            # Allocations in current block
-            curr_block_allocs = sorted(curr_block_allocs)
-            for i in range(len(curr_block_allocs)):
-                # For the first allocation in the block
-                if i == 0:
-                    if curr_block_allocs[i] - curr_block * constants.BLOCK_SIZE >= size:
-                        new_addr = curr_block << self.OFFSET_BITS
-                        self.allocations[new_addr] = size
-                        self.used_per_allocation[new_addr] = 0
-                        self.space_used += size
-
-                        return new_addr
-
-                # For the last allocation in the block
-                if i == len(curr_block_allocs) - 1:
-                    if curr_block_allocs[i] + self.allocations[curr_block_allocs[i]] + size <= (curr_block + 1) * constants.BLOCK_SIZE:
-                        new_addr = curr_block_allocs[i] + \
-                            self.allocations[curr_block_allocs[i]]
-                        self.allocations[new_addr] = size
-                        self.used_per_allocation[new_addr] = 0
-                        self.space_used += size
-
-                        return new_addr
-                    continue
-
-                # For all other allocations in the block
-                if curr_block_allocs[i+1] - (curr_block_allocs[i] + self.allocations[curr_block_allocs[i]]) >= size:
-                    new_addr = curr_block_allocs[i] + \
-                        self.allocations[curr_block_allocs[i]]
-                    self.allocations[new_addr] = size
-                    self.used_per_allocation[new_addr] = 0
-                    self.space_used += size
-
-                    return new_addr
-
-        raise ValueError('Not enough space in memory')
+        return addr
 
     def read_file(self, addr: int, starting_byte=0, num_bytes=None):
         size = self.allocations[addr]
@@ -155,9 +118,11 @@ class Memory:
         if size is None:
             return
 
+        block = addr >> self.OFFSET_BITS
         self.space_used -= size
         del self.allocations[addr]
         del self.used_per_allocation[addr]
+        self.free_blocks.append(block)
 
     def get_free_space(self):
         return self.total_size - self.space_used
