@@ -20,7 +20,7 @@ class Memory:
                                         for _ in range(constants.TOTAL_BLOCKS)]
 
         # addr -> size
-        # addr [4 bits for block number, self.OFFSET_BITS bits for offset]
+        # addr [4 bits for block number, 6 bits for offset]
         self.allocations: Dict[int, int] = {}
         self.used_per_allocation: Dict[int, int] = {}
         self.free_blocks = [i for i in range(constants.TOTAL_BLOCKS)]
@@ -131,7 +131,7 @@ class Memory:
         print("Memory Map:", file=outfile)
         for i, (addr, size) in enumerate(self.allocations.items()):
             print(
-                f"Allocation#{i+1} | Address: {addr}, Size: {size}, Used: {self.used_per_allocation[addr]}", file=outfile)
+                f"Allocation#{i+1} | Block#{addr >> self.OFFSET_BITS} Address: {hex(addr)}, Size: {size}, Used: {self.used_per_allocation[addr]}", file=outfile)
 
     def show_memory_layout(self, outfile=sys.stdout):
         print("Memory Layout:", file=outfile)
