@@ -119,16 +119,17 @@ class Memory:
             return
 
         block = addr >> self.OFFSET_BITS
+        self.free_blocks.append(block)
         self.space_used -= size
         del self.allocations[addr]
         del self.used_per_allocation[addr]
-        self.free_blocks.append(block)
 
     def get_free_space(self):
         return self.total_size - self.space_used
 
     def show_memory_map(self, outfile=sys.stdout):
         print("Memory Map:", file=outfile)
+        print("Free Blocks:", self.free_blocks, file=outfile)
         for i, (addr, size) in enumerate(self.allocations.items()):
             print(
                 f"Allocation#{i+1} | Block#{addr >> self.OFFSET_BITS} Address: {hex(addr)}, Size: {size}, Used: {self.used_per_allocation[addr]}", file=outfile)
