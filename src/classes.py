@@ -20,7 +20,7 @@ class Memory:
                                         for _ in range(constants.TOTAL_BLOCKS)]
 
         # addr -> size
-        # addr [4 bits for block number, self.OFFSET_BITS bits for offset]
+        # addr [4 bits for block number, 6 bits for offset]
         self.allocations: Dict[int, int] = {}
         self.used_per_allocation: Dict[int, int] = {}
 
