@@ -57,6 +57,7 @@ def thread_worker(thread_id, input_filename_prefix, output_filename_prefix):
                 execute_command(command, output_file, root, memory)
 
     print(f'Thread {thread_id} finished')
+    exit_program(root, memory)
 
 
 def handle_sigint(sig, frame):
