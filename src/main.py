@@ -48,8 +48,6 @@ def main():
 
 
 def thread_worker(thread_id, input_filename_prefix, output_filename_prefix):
-    print(f'Thread {thread_id} started')
-
     with open(f"{input_filename_prefix}{thread_id}.txt", 'r') as input_file:
         with open(f"{output_filename_prefix}{thread_id}.txt", 'w') as output_file:
             for line in input_file:
@@ -57,11 +55,11 @@ def thread_worker(thread_id, input_filename_prefix, output_filename_prefix):
                 execute_command(command, output_file, root, memory)
 
     print(f'Thread {thread_id} finished')
-    exit_program(root, memory)
+    exit_program(root, memory, sys.stdout)
 
 
 def handle_sigint(sig, frame):
-    exit_program(root, memory)
+    exit_program(root, memory, sys.stdout)
 
 
 if __name__ == '__main__':
