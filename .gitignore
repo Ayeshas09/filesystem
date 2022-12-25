@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 
 ./storage.dat
+storage.dat
