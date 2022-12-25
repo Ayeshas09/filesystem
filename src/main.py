@@ -18,7 +18,7 @@ def main():
         root = DirectoryNode('/', datetime.now())
         memory = Memory()
 
-    FS_Node.set_memory(memory)
+    FS_Node.memory = memory
 
     display_menu()
     user_input(root, memory)

@@ -21,6 +21,8 @@ menu = {
     'cat <filename>': 'Read from a file',
     'rf <filename> <starting byte> <content length>': 'Read from a file from a specific byte',
 
+    'mmap': 'Display memory map',
+
     'ls <path>': 'List files and directories',
     'exit': 'Exit the program'
 }
@@ -112,6 +114,10 @@ def user_input(root: DirectoryNode, memory: Memory):
             content_length = int(segments[3])
 
             display_file(currentDir, filename, starting_byte, content_length)
+
+        elif command.startswith('mmap'):
+            memory.show_memory_map()
+            memory.show_memory_layout()
 
         else:
             print('Invalid command!')
