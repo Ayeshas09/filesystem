@@ -14,9 +14,12 @@ menu = {
     'mkdir <dirname>': 'Create a new directory',
     'cd <path>': 'Change directory',
     'mv <in filename | dirname> <out filename | dirname>': 'Move a file or directory',
+
+    'open <filename> <mode (r, w, a )>': 'Open a file',
     'wf <filename> <content>': 'Write to a file',
     'af <filename> <content>': 'Append to a file',
     'mwf <filename> <starting byte> <content length> <writing byte>': 'Move content within a file',
+    'close <filename>': 'Close a file',
 
     'cat <filename>': 'Read from a file',
     'rf <filename> <starting byte> <content length>': 'Read from a file from a specific byte',
@@ -114,6 +117,18 @@ def user_input(root: DirectoryNode, memory: Memory):
             content_length = int(segments[3])
 
             display_file(currentDir, filename, starting_byte, content_length)
+
+        elif command.startswith('open'):
+            segments = split_strip(command, ' ')
+            filename = segments[1]
+            mode = segments[2]
+
+            open_file(currentDir, filename, mode)
+
+        elif command.startswith('close'):
+            _, filename = split_strip(command, ' ')
+
+            close_file(currentDir, filename)
 
         elif command.startswith('mmap'):
             memory.show_memory_map()
@@ -225,20 +240,24 @@ def write_file(currentDir: DirectoryNode, filename: str, content: List[str]):
         print('No such file exists!')
         return
 
-    content_bytes = string_to_bytes(content)
-    if file.starting_addr < 0 and file.size == 0:
-        try:
-            file.starting_addr = memory.allocate(len(content_bytes))
-            file.size = len(content)
-        except ValueError:
-            print('Not enough memory!')
-            return
+    if file.state == FileNode.STATE_OPEN and file.mode == FileNode.MODE_WRITE:
+        content_bytes = string_to_bytes(content)
+        if file.starting_addr < 0 and file.size == 0:
+            try:
+                file.starting_addr = memory.allocate(len(content_bytes))
+                file.size = len(content)
+            except ValueError:
+                print('Not enough memory!')
+                return
 
-    file.starting_addr = memory.write_file(
-        file.starting_addr, content_bytes)
+        file.starting_addr = memory.write_file(
+            file.starting_addr, content_bytes)
 
-    file.date_modified = datetime.now()
-    print('File written successfully!')
+        file.date_modified = datetime.now()
+        print('File written successfully!')
+
+    else:
+        print('File is not open in write mode!')
 
 
 def append_file(currentDir: DirectoryNode, filename: str, new_content: List[str]):
@@ -249,20 +268,24 @@ def append_file(currentDir: DirectoryNode, filename: str, new_content: List[str]
         print('No such file exists!')
         return
 
-    new_content_bytes = string_to_bytes(new_content)
-    if file.starting_addr < 0 and file.size == 0:
-        try:
-            file.starting_addr = memory.allocate(len(new_content_bytes))
-        except ValueError:
-            print('Not enough memory!')
-            return
+    if file.state == FileNode.STATE_OPEN and file.mode == FileNode.MODE_APPEND:
+        new_content_bytes = string_to_bytes(new_content)
+        if file.starting_addr < 0 and file.size == 0:
+            try:
+                file.starting_addr = memory.allocate(len(new_content_bytes))
+            except ValueError:
+                print('Not enough memory!')
+                return
 
-    file.starting_addr = memory.append_file(
-        file.starting_addr, new_content_bytes)
+        file.starting_addr = memory.append_file(
+            file.starting_addr, new_content_bytes)
 
-    file.size += len(new_content)
-    file.date_modified = datetime.now()
-    print('File appended successfully!')
+        file.size += len(new_content)
+        file.date_modified = datetime.now()
+        print('File appended successfully!')
+
+    else:
+        print('File is not open in append mode!')
 
 
 def move_within_file(currentDir: DirectoryNode, filename: str, starting_byte: int, content_length: int, writing_byte: int):
@@ -273,23 +296,24 @@ def move_within_file(currentDir: DirectoryNode, filename: str, starting_byte: in
         print('No such file exists!')
         return
 
-    if file.starting_addr < 0 and file.size == 0:
-        print('File is empty!')
-        return
+    if file.state == FileNode.STATE_OPEN and file.mode == FileNode.MODE_WRITE:
+        if file.starting_addr < 0 and file.size == 0:
+            print('File is empty!')
+            return
 
-    if starting_byte + content_length > file.size:
-        print('Invalid starting byte and content length!')
-        return
+        if starting_byte + content_length > file.size:
+            print('Invalid starting byte and content length!')
+            return
 
-    if writing_byte > file.size:
-        print('Invalid writing byte!')
-        return
+        if writing_byte > file.size:
+            print('Invalid writing byte!')
+            return
 
-    file.starting_addr = memory.move_within_file(
-        file.starting_addr, starting_byte, content_length, writing_byte)
+        file.starting_addr = memory.move_within_file(
+            file.starting_addr, starting_byte, content_length, writing_byte)
 
-    file.date_modified = datetime.now()
-    print('File moved successfully!')
+        file.date_modified = datetime.now()
+        print('File moved successfully!')
 
 
 def display_file(currentDir: DirectoryNode, filename: str, starting_byte: int = 0, content_length: int = -1):
@@ -300,18 +324,51 @@ def display_file(currentDir: DirectoryNode, filename: str, starting_byte: int = 
         print('No such file exists!')
         return
 
-    if file.starting_addr < 0 and file.size == 0:
-        print()
+    if file.state == FileNode.STATE_OPEN and file.mode == FileNode.MODE_WRITE:
+        if file.starting_addr < 0 and file.size == 0:
+            print()
+            return
+
+        content = bytes_to_string(
+            memory.read_file(
+                file.starting_addr,
+                starting_byte=starting_byte,
+                num_bytes=file.size if content_length == -1 else content_length)
+        )
+
+        print(content)
+
+    else:
+        print('File is not open in read mode!')
+
+
+def open_file(currentDir: DirectoryNode, filename: str, mode: str):
+    file: FileNode = currentDir.get_child(filename)
+
+    if not file or not isinstance(file, FileNode):
+        print('No such file exists!')
         return
 
-    content = bytes_to_string(
-        memory.read_file(
-            file.starting_addr,
-            starting_byte=starting_byte,
-            num_bytes=file.size if content_length == -1 else content_length)
-    )
+    if mode in [FileNode.MODE_NONE, FileNode.MODE_READ, FileNode.MODE_WRITE, FileNode.MODE_APPEND]:
+        file.mode = mode
+        file.state = FileNode.STATE_OPEN
+        print('File opened successfully!')
+    else:
+        print('Invalid mode!')
 
-    print(content)
+
+def close_file(currentDir: DirectoryNode, filename: str):
+    file: FileNode = currentDir.get_child(filename)
+
+    if not file or not isinstance(file, FileNode):
+        print('No such file exists!')
+        return
+
+    if file.state == FileNode.STATE_OPEN:
+        file.state = FileNode.STATE_CLOSED
+        print('File closed successfully!')
+    else:
+        print('File is not open!')
 
 
 def exit_program(structure: DirectoryNode, memory: Memory):

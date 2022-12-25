@@ -251,11 +251,22 @@ class DirectoryNode(FS_Node):
 
 
 class FileNode(FS_Node):
+    STATE_CLOSE = 0
+    STATE_OPEN = 1
+
+    MODE_NONE = None
+    MODE_READ = 'r'
+    MODE_WRITE = 'w'
+    MODE_APPEND = 'a'
+
     def __init__(self, name: string, date_created: datetime = datetime.datetime.now(), date_modified: datetime = datetime.datetime.now()) -> None:
         super().__init__(name, date_created)
         self.date_modified = date_modified
         self.starting_addr = -1
         self.size = 0
+
+        self.state = FileNode.STATE_CLOSE
+        self.mode: FileNode.MODE_NONE | FileNode.MODE_READ | FileNode.MODE_WRITE | FileNode.MODE_APPEND = FileNode.MODE_NONE
 
     def set_size(self, size):
         if 0 <= size < constants.MAX_FILE_SIZE:
