@@ -8,6 +8,10 @@ PORT = 65430  # The port used by the server
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
 
+    # take username and send to server
+    username = input("Enter username: ")
+    s.sendall(username.encode())
+
     # take user input until 'exit' is entered
     while True:
         data = s.recv(1024*4)
@@ -15,4 +19,5 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         data = input("Enter data to send to server: ")
         s.sendall(data.encode())
         if data == "exit":
+            s.recv(1024)
             break
