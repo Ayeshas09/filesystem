@@ -39,103 +39,102 @@ def display_menu():
     print('----------------------------------------')
 
 
-def user_input(root: DirectoryNode, memory: Memory):
+def user_input(root: DirectoryNode, memory: Memory, command):
 
     currentDir = root
 
-    while True:
-        command = input('Enter the command: ').strip()
+    command = command.strip()
 
-        if command == 'help':
-            display_menu()
+    if command == 'help':
+        display_menu()
 
-        elif command.startswith('exit'):
-            exit_program(root, memory)
+    elif command.startswith('exit'):
+        exit_program(root, memory)
 
-        elif command.startswith('touch'):
-            _, filename = split_strip(command, ' ')
-            touch(currentDir, filename)
+    elif command.startswith('touch'):
+        _, filename = split_strip(command, ' ')
+        touch(currentDir, filename)
 
-        elif command.startswith('mkdir'):
-            _, dirname = split_strip(command, ' ')
-            mkdir(currentDir, dirname)
+    elif command.startswith('mkdir'):
+        _, dirname = split_strip(command, ' ')
+        mkdir(currentDir, dirname)
 
-        elif command.startswith('ls'):
-            if command == 'ls':
-                currentDir.print_directory_structure()
-
-            else:
-                _, path = command.split(' ')
-                ls(currentDir, path)
-
-        elif command.startswith('rm'):
-            _, name = split_strip(command, ' ')
-            remove(currentDir, name)
-
-        elif command.startswith('mv'):
-            _, name, destination = split_strip(command, ' ')
-            move(currentDir, name, destination)
-
-        elif command.startswith('cd'):
-            _, path = split_strip(command, ' ')
-
-            currentDir = change_dir(currentDir, path)
-
-        elif command.startswith('wf'):
-            segments = split_strip(command, ' ')
-            filename = segments[1]
-            content = ' '.join(segments[2:])
-
-            write_file(currentDir, filename, content)
-
-        elif command.startswith('af'):
-            segments = split_strip(command, ' ')
-            filename = segments[1]
-            content = ' '.join(segments[2:])
-
-            append_file(currentDir, filename, content)
-
-        elif command.startswith('mwf'):
-            segments = split_strip(command, ' ')
-            filename = segments[1]
-            starting_byte = int(segments[2])
-            content_length = int(segments[3])
-            writing_byte = int(segments[4])
-
-            move_within_file(currentDir, filename, starting_byte,
-                             content_length, writing_byte)
-
-        elif command.startswith('cat'):
-            _, filename = split_strip(command, ' ')
-
-            display_file(currentDir, filename)
-
-        elif command.startswith('rf'):
-            segments = split_strip(command, ' ')
-            filename = segments[1]
-            starting_byte = int(segments[2])
-            content_length = int(segments[3])
-
-            display_file(currentDir, filename, starting_byte, content_length)
-
-        elif command.startswith('open'):
-            segments = split_strip(command, ' ')
-            filename = segments[1]
-            mode = segments[2]
-
-            open_file(currentDir, filename, mode)
-
-        elif command.startswith('close'):
-            _, filename = split_strip(command, ' ')
-
-            close_file(currentDir, filename)
-
-        elif command.startswith('mmap'):
-            memory.show_memory_map()
-            memory.show_memory_layout()
+    elif command.startswith('ls'):
+        if command == 'ls':
+            currentDir.print_directory_structure()
 
         else:
-            print('Invalid command!')
+            _, path = command.split(' ')
+            ls(currentDir, path)
+
+    elif command.startswith('rm'):
+        _, name = split_strip(command, ' ')
+        remove(currentDir, name)
+
+    elif command.startswith('mv'):
+        _, name, destination = split_strip(command, ' ')
+        move(currentDir, name, destination)
+
+    elif command.startswith('cd'):
+        _, path = split_strip(command, ' ')
+
+        currentDir = change_dir(currentDir, path)
+
+    elif command.startswith('wf'):
+        segments = split_strip(command, ' ')
+        filename = segments[1]
+        content = ' '.join(segments[2:])
+
+        write_file(currentDir, filename, content)
+
+    elif command.startswith('af'):
+        segments = split_strip(command, ' ')
+        filename = segments[1]
+        content = ' '.join(segments[2:])
+
+        append_file(currentDir, filename, content)
+
+    elif command.startswith('mwf'):
+        segments = split_strip(command, ' ')
+        filename = segments[1]
+        starting_byte = int(segments[2])
+        content_length = int(segments[3])
+        writing_byte = int(segments[4])
+
+        move_within_file(currentDir, filename, starting_byte,
+                            content_length, writing_byte)
+
+    elif command.startswith('cat'):
+        _, filename = split_strip(command, ' ')
+
+        display_file(currentDir, filename)
+
+    elif command.startswith('rf'):
+        segments = split_strip(command, ' ')
+        filename = segments[1]
+        starting_byte = int(segments[2])
+        content_length = int(segments[3])
+
+        display_file(currentDir, filename, starting_byte, content_length)
+
+    elif command.startswith('open'):
+        segments = split_strip(command, ' ')
+        filename = segments[1]
+        mode = segments[2]
+
+        open_file(currentDir, filename, mode)
+
+    elif command.startswith('close'):
+        _, filename = split_strip(command, ' ')
+
+        close_file(currentDir, filename)
+
+    elif command.startswith('mmap'):
+        memory.show_memory_map()
+        memory.show_memory_layout()
+
+    else:
+        print('Invalid command!')
 
 
 def touch(currentDir, name: str):
