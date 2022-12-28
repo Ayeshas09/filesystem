@@ -4,6 +4,7 @@ import sys
 from _thread import allocate_lock, start_new_thread
 from datetime import datetime
 from io import StringIO
+from client import BUFFER_SIZE
 
 import file_io
 from classes import DirectoryNode, FS_Node, Memory
@@ -14,6 +15,8 @@ memory: Memory = None
 
 HOST = "127.0.0.1"
 PORT = 95
+
+BUFFER_SIZE = 1024
 
 
 def main():

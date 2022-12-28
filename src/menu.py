@@ -16,7 +16,6 @@ menu = {
     'rm <filename | dirname>': 'Remove a file',
     'mkdir <dirname>': 'Create a new directory',
     'cd <path>': 'Change directory',
-    'mv <in filename | dirname> <out filename | dirname>': 'Move a file or directory',
 
     'open <filename> <mode (r, w, a )>': 'Open a file',
     'wf <filename> <content>': 'Write to a file',
@@ -212,6 +211,11 @@ def move(currentDir, name, new_name):
     if currentDir.get_child(name):
         child = currentDir.get_child(name)
 
+        if isinstance(child, FileNode):
+            if child.state == FileNode.STATE_OPEN:
+                print('File is currently open. Cannot move!')
+                return
+
         if '/' in new_name:
             dir, file = new_name.split('/')
             new_dir = currentDir.get_child(dir)
@@ -226,7 +230,6 @@ def move(currentDir, name, new_name):
             child.name = file
 
         else:
-
             if isinstance(currentDir.get_child(new_name), DirectoryNode):
                 new_dir = currentDir.get_child(new_name)
                 currentDir.remove_child(child)
