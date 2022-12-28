@@ -166,6 +166,17 @@ def touch(currentDir, name: str):
 def remove(currentDir, name):
     if currentDir.get_child(name):
         child = currentDir.get_child(name)
+
+        # If the the node being deleted is a file.
+        if isinstance(child, FileNode):
+            if child.state == FileNode.STATE_OPEN:
+                print('File is currently open. Cannot delete!')
+                return
+        elif isinstance(child, DirectoryNode):
+            if child.children:
+                print('Directory is not empty. Cannot delete!')
+                return
+
         currentDir.remove_child(child)
         print('Deleted successfully!')
 
