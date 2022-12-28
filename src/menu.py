@@ -1,3 +1,4 @@
+import queue
 from socket import socket
 import time
 from datetime import datetime
@@ -6,6 +7,7 @@ from typing import List
 import file_io
 from classes import DirectoryNode, FS_Node, FileNode, Memory
 from utils import bytes_to_string, split_strip, string_to_bytes
+from _thread import LockType
 
 menu = {
     'help': 'Display this menu',
@@ -23,13 +25,16 @@ menu = {
     'close <filename>': 'Close a file',
 
     'cat <filename>': 'Read from a file',
-    'rf <filename> <starting byte> <content length>': 'Read from a file from a specific byte',
+    'rf <filename>': 'Read from a file from a specific byte',
 
     'mmap': 'Display memory map',
 
     'ls <path>': 'List files and directories',
     'exit': 'Exit the program'
 }
+
+readers_count = 0
+readers_list = []
 
 
 def display_menu():
@@ -50,8 +55,8 @@ def init_exchange(root: DirectoryNode, memory: Memory, conn: socket):
     }
 
 
-def user_input(root: DirectoryNode, cwd: DirectoryNode, memory: Memory, id: socket, command: str):
-    currentDir = cwd
+def user_input(connection: socket, root: DirectoryNode, memory: Memory, command: str, write_lock: LockType, cwd: DirectoryNode = None) -> DirectoryNode:
+    currentDir = cwd if cwd else root
 
     command = command.strip()
 
@@ -89,6 +94,7 @@ def user_input(root: DirectoryNode, cwd: DirectoryNode, memory: Memory, id: sock
         _, path = split_strip(command, ' ')
 
         currentDir = change_dir(currentDir, path)
+        print(f'Directory changed to {currentDir.name}')
 
     elif command.startswith('wf'):
         segments = split_strip(command, ' ')
@@ -122,22 +128,20 @@ def user_input(root: DirectoryNode, cwd: DirectoryNode, memory: Memory, id: sock
     elif command.startswith('rf'):
         segments = split_strip(command, ' ')
         filename = segments[1]
-        starting_byte = int(segments[2])
-        content_length = int(segments[3])
 
-        display_file(currentDir, filename, starting_byte, content_length)
+        display_file(connection, currentDir, filename)
 
     elif command.startswith('open'):
         segments = split_strip(command, ' ')
         filename = segments[1]
         mode = segments[2]
 
-        open_file(currentDir, filename, mode)
+        open_file(write_lock, connection, currentDir, filename, mode)
 
     elif command.startswith('close'):
         _, filename = split_strip(command, ' ')
 
-        close_file(currentDir, filename)
+        close_file(write_lock, connection, currentDir, filename)
 
     elif command.startswith('mmap'):
         memory.show_memory_map()
@@ -145,6 +149,8 @@ def user_input(root: DirectoryNode, cwd: DirectoryNode, memory: Memory, id: sock
 
     else:
         print('Invalid command!')
+
+    return currentDir
 
 
 def touch(currentDir, name: str):
@@ -325,7 +331,11 @@ def move_within_file(currentDir: DirectoryNode, filename: str, starting_byte: in
         print('File moved successfully!')
 
 
-def display_file(currentDir: DirectoryNode, filename: str, starting_byte: int = 0, content_length: int = -1):
+def display_file(connection: socket, currentDir: DirectoryNode, filename: str, starting_byte: int = 0, content_length: int = -1):
+    if connection not in readers_list:
+        print("File is not open in read mode!")
+        return
+
     memory = FS_Node.memory
     file: FileNode = currentDir.get_child(filename)
 
@@ -333,7 +343,7 @@ def display_file(currentDir: DirectoryNode, filename: str, starting_byte: int = 
         print('No such file exists!')
         return
 
-    if file.state == FileNode.STATE_OPEN and file.mode == FileNode.MODE_WRITE:
+    if file.state == FileNode.STATE_OPEN and file.mode == FileNode.MODE_READ:
         if file.starting_addr < 0 and file.size == 0:
             print()
             return
@@ -351,22 +361,51 @@ def display_file(currentDir: DirectoryNode, filename: str, starting_byte: int = 
         print('File is not open in read mode!')
 
 
-def open_file(currentDir: DirectoryNode, filename: str, mode: str):
+def open_file(write_lock: LockType, connection: socket, currentDir: DirectoryNode, filename: str, mode: str):
+    global readers_list
+
+    if write_lock.locked():
+        print("File system is busy, please try again later!")
+        return
+
     file: FileNode = currentDir.get_child(filename)
 
     if not file or not isinstance(file, FileNode):
         print('No such file exists!')
         return
 
+    # If file is open in write mode, then it can't be opened in read or append mode
+    # If file is open in append mode, then it can't be opened in read mode
+    # If file is open in read mode, then it can't be opened in write or append mode
+    # If file is open in read mode, then it can't be opened in write mode
+    # if file is open for read mode, then all the other readers can read the file, and file is only closed when all the readers are done
     if mode in [FileNode.MODE_NONE, FileNode.MODE_READ, FileNode.MODE_WRITE, FileNode.MODE_APPEND]:
-        file.mode = mode
-        file.state = FileNode.STATE_OPEN
-        print('File opened successfully!')
+        if file.state == file.STATE_CLOSE:
+            file.mode = mode
+            file.state = FileNode.STATE_OPEN
+
+            if mode == FileNode.MODE_WRITE or mode == FileNode.MODE_APPEND:
+                write_lock.acquire()
+
+            if mode == FileNode.MODE_READ:
+                readers_list.append(connection)
+
+            print('File opened successfully in {} mode!'.format(mode))
+
+        elif file.state == file.STATE_OPEN:
+            if file.mode == mode == FileNode.MODE_READ:
+                print('File opened successfully in {} mode!'.format(mode))
+                readers_list.append(connection)
+            else:
+                print('Please wait. File is already open in {} mode!'.format(file.mode))
+
     else:
         print('Invalid mode!')
 
 
-def close_file(currentDir: DirectoryNode, filename: str):
+def close_file(write_lock: LockType, connection: socket, currentDir: DirectoryNode, filename: str):
+    global readers_list
+
     file: FileNode = currentDir.get_child(filename)
 
     if not file or not isinstance(file, FileNode):
@@ -374,9 +413,20 @@ def close_file(currentDir: DirectoryNode, filename: str):
         return
 
     if file.state == FileNode.STATE_OPEN:
-        file.state = FileNode.STATE_CLOSED
-        file.mode = FileNode.MODE_NONE
-        print('File closed successfully!')
+        if file.mode == FileNode.MODE_APPEND or file.mode == FileNode.MODE_WRITE:
+            write_lock.release()
+
+            file.state = FileNode.STATE_CLOSE
+            file.mode = FileNode.MODE_NONE
+            print('File closed successfully!')
+
+        elif file.mode == FileNode.MODE_READ:
+            readers_list.remove(connection)
+            if len(readers_list) == 0:
+                file.state = FileNode.STATE_CLOSE
+                file.mode = FileNode.MODE_NONE
+
+            print('File closed successfully!')
     else:
         print('File is not open!')
 

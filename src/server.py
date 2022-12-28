@@ -1,9 +1,9 @@
 import signal
-from datetime import datetime
 import socket
 import sys
+from _thread import allocate_lock, start_new_thread
+from datetime import datetime
 from io import StringIO
-from _thread import *
 
 import file_io
 from classes import DirectoryNode, FS_Node, Memory
@@ -17,7 +17,7 @@ HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
 PORT = 65430
 
 
-def client_handler(conn, addr):
+def client_handler(conn, addr, write_lock):
     with conn:
         user = conn.recv(1024).decode()
         print(F'Connected by {user} at {addr[0]}:{addr[1]}')
@@ -28,6 +28,8 @@ def client_handler(conn, addr):
         sys.stdout = sys.__stdout__
         conn.sendall(buffer.getvalue().encode())
 
+        cwd = root
+
         while True:
             data = conn.recv(1024)
             if not data:
@@ -35,9 +37,13 @@ def client_handler(conn, addr):
             # print the data received from the client
             print(f"Received from {user}:  {data}")
 
+            if data.decode().startswith('exit'):
+                break
+
             buffer.truncate(0)
             sys.stdout = buffer
-            user_input(root, memory, data.decode())
+            cwd = user_input(conn, root, memory,
+                             data.decode(), write_lock, cwd)
             sys.stdout = sys.__stdout__
             data = buffer.getvalue()
             print('-->', data)
@@ -46,13 +52,16 @@ def client_handler(conn, addr):
 
 def accept_connections(serverSocket):
     client, addr = serverSocket.accept()
-    start_new_thread(client_handler, (client, addr))
+    write_lock = allocate_lock()
+    start_new_thread(client_handler, (client, addr, write_lock))
 
 
 def start_server(host, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((host, port))
         s.listen()
+
+        print(f"Server started at {host}:{port}...")
 
         while True:
             accept_connections(s)
