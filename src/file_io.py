@@ -14,7 +14,7 @@ def save_to_file(filename=constants.FILENAME, structure: classes.FS_Node = None,
         }, f, default=lambda o: o.__dict__())
 
 
-def load_from_file(filename=constants.FILENAME) -> Tuple[classes.FS_Node | None, classes.Memory | None]:
+def load_from_file(filename=constants.FILENAME) -> (Tuple[classes.FS_Node, classes.Memory] | Tuple[None, None]):
     if not os.path.isfile(filename):
         return None, None
 

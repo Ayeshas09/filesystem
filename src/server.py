@@ -12,7 +12,8 @@ root: DirectoryNode = None
 memory: Memory = None
 
 HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-PORT = 65430  # Port to listen on (non-privileged ports are > 1023)
+# Port to listen on (non-privileged ports are > 1023)memory: Memory = None
+PORT = 65430
 
 
 def main():

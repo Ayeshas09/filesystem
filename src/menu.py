@@ -1,3 +1,4 @@
+from socket import socket
 import time
 from datetime import datetime
 from typing import List
@@ -39,9 +40,18 @@ def display_menu():
     print('----------------------------------------')
 
 
-def user_input(root: DirectoryNode, memory: Memory, command):
+def init_exchange(root: DirectoryNode, memory: Memory, conn: socket):
+    # Returns an identifier for the connection
+    return {
+        "root": root,
+        "cwd": root,
+        "memory": memory,
+        "id": conn,
+    }
 
-    currentDir = root
+
+def user_input(root: DirectoryNode, cwd: DirectoryNode, memory: Memory, id: socket, command: str):
+    currentDir = cwd
 
     command = command.strip()
 
@@ -102,7 +112,7 @@ def user_input(root: DirectoryNode, memory: Memory, command):
         writing_byte = int(segments[4])
 
         move_within_file(currentDir, filename, starting_byte,
-                            content_length, writing_byte)
+                         content_length, writing_byte)
 
     elif command.startswith('cat'):
         _, filename = split_strip(command, ' ')
