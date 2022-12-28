@@ -365,6 +365,7 @@ def close_file(currentDir: DirectoryNode, filename: str):
 
     if file.state == FileNode.STATE_OPEN:
         file.state = FileNode.STATE_CLOSED
+        file.mode = FileNode.MODE_NONE
         print('File closed successfully!')
     else:
         print('File is not open!')
