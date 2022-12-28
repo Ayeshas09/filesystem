@@ -3,6 +3,7 @@ from datetime import datetime
 import socket
 import sys
 from io import StringIO
+from _thread import *
 
 import file_io
 from classes import DirectoryNode, FS_Node, Memory
@@ -15,6 +16,47 @@ HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
 PORT = 65430  # Port to listen on (non-privileged ports are > 1023)
 
 
+def client_handler(conn, addr):
+    with conn:
+        user = conn.recv(1024).decode()
+        print(F'Connected by {user} at {addr[0]}:{addr[1]}')
+
+        buffer = StringIO()
+        sys.stdout = buffer
+        display_menu()
+        sys.stdout = sys.__stdout__
+        conn.sendall(buffer.getvalue().encode())
+
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+            # print the data received from the client
+            print(f"Received from {user}:  {data}")
+
+            buffer.truncate(0)
+            sys.stdout = buffer
+            user_input(root, memory, data.decode())
+            sys.stdout = sys.__stdout__
+            data = buffer.getvalue()
+            print('-->', data)
+            conn.sendall(data.encode())
+
+
+def accept_connections(serverSocket):
+    client, addr = serverSocket.accept()
+    start_new_thread(client_handler, (client, addr))
+
+
+def start_server(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, port))
+        s.listen()
+
+        while True:
+            accept_connections(s)
+
+
 def main():
     global root, memory
 
@@ -25,33 +67,8 @@ def main():
         memory = Memory()
 
     FS_Node.memory = memory
-    buffer = StringIO()
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        conn, addr = s.accept()
-        with conn:
-            print(f"Connected by {addr}")
-            sys.stdout = buffer
-            display_menu()
-            sys.stdout = sys.__stdout__
-            conn.sendall(buffer.getvalue().encode())
-
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                # print the data received from the client
-                print(f"Received: \n{data!r}")
-
-                buffer.truncate(0)
-                sys.stdout = buffer
-                user_input(root, memory, data.decode())
-                sys.stdout = sys.__stdout__
-                data = buffer.getvalue()
-                print('-->', data)
-                conn.sendall(data.encode())
+    start_server(HOST, PORT)
 
 
 def handle_sigint(sig, frame):
