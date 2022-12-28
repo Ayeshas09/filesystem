@@ -12,9 +12,39 @@ from menu import display_menu, exit_program, user_input
 root: DirectoryNode = None
 memory: Memory = None
 
-HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-# Port to listen on (non-privileged ports are > 1023)memory: Memory = None
-PORT = 65430
+HOST = "127.0.0.1"
+PORT = 95
+
+
+def main():
+    global root, memory
+
+    root, memory = file_io.load_from_file()
+
+    if not root or not memory:
+        root = DirectoryNode('/', datetime.now())
+        memory = Memory()
+
+    FS_Node.memory = memory
+
+    start_server(HOST, PORT)
+
+
+def start_server(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, port))
+        s.listen()
+
+        print(f"Server started at {host}:{port}...")
+
+        while True:
+            accept_connections(s)
+
+
+def accept_connections(serverSocket):
+    client, addr = serverSocket.accept()
+    write_lock = allocate_lock()
+    start_new_thread(client_handler, (client, addr, write_lock))
 
 
 def client_handler(conn, addr, write_lock):
@@ -48,37 +78,6 @@ def client_handler(conn, addr, write_lock):
             data = buffer.getvalue()
             print('-->', data)
             conn.sendall(data.encode())
-
-
-def accept_connections(serverSocket):
-    client, addr = serverSocket.accept()
-    write_lock = allocate_lock()
-    start_new_thread(client_handler, (client, addr, write_lock))
-
-
-def start_server(host, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((host, port))
-        s.listen()
-
-        print(f"Server started at {host}:{port}...")
-
-        while True:
-            accept_connections(s)
-
-
-def main():
-    global root, memory
-
-    root, memory = file_io.load_from_file()
-
-    if not root or not memory:
-        root = DirectoryNode('/', datetime.now())
-        memory = Memory()
-
-    FS_Node.memory = memory
-
-    start_server(HOST, PORT)
 
 
 def handle_sigint(sig, frame):
