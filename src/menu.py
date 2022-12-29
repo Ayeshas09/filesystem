@@ -24,7 +24,7 @@ menu = {
     'close <filename>': 'Close a file',
 
     'cat <filename>': 'Read from a file',
-    'rf <filename>': 'Read from a file from a specific byte',
+    'rf <filename> <starting byte> <content length>': 'Read from a file from a specific byte',
 
     'mmap': 'Display memory map',
 
@@ -122,13 +122,16 @@ def user_input(connection: socket, root: DirectoryNode, memory: Memory, command:
     elif command.startswith('cat'):
         _, filename = split_strip(command, ' ')
 
-        display_file(currentDir, filename)
+        display_file(connection, currentDir, filename)
 
     elif command.startswith('rf'):
         segments = split_strip(command, ' ')
         filename = segments[1]
+        starting_byte = int(segments[2])
+        content_length = int(segments[3])
 
-        display_file(connection, currentDir, filename)
+        display_file(connection, currentDir, filename,
+                     starting_byte, content_length)
 
     elif command.startswith('open'):
         segments = split_strip(command, ' ')
