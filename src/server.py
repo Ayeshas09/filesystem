@@ -8,7 +8,7 @@ from client import BUFFER_SIZE
 
 import file_io
 from classes import DirectoryNode, FS_Node, Memory
-from menu import display_menu, exit_program, user_input
+from menu import display_menu, exit_program, execute_command
 
 root: DirectoryNode = None
 memory: Memory = None
@@ -52,7 +52,7 @@ def accept_connections(serverSocket):
 
 def client_handler(conn, addr, write_lock):
     with conn:
-        user = conn.recv(1024).decode()
+        user = conn.recv(BUFFER_SIZE).decode()
         print(F'Connected by {user} at {addr[0]}:{addr[1]}')
 
         buffer = StringIO()
@@ -64,7 +64,7 @@ def client_handler(conn, addr, write_lock):
         cwd = root
 
         while True:
-            data = conn.recv(1024)
+            data = conn.recv(BUFFER_SIZE)
             if not data:
                 break
             # print the data received from the client
@@ -75,8 +75,8 @@ def client_handler(conn, addr, write_lock):
 
             buffer.truncate(0)
             sys.stdout = buffer
-            cwd = user_input(conn, root, memory,
-                             data.decode(), write_lock, cwd)
+            cwd = execute_command(conn, root, memory,
+                                  data.decode(), write_lock, cwd)
             sys.stdout = sys.__stdout__
             data = buffer.getvalue()
             print('-->', data)

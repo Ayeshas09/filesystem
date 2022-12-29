@@ -18,7 +18,7 @@ def main():
             return
 
         # take username and send to server
-        username = input(f"{TColors.UNDERLINE}Enter username:{TColors.ENDC} ")
+        username = input(f"{TColors.UNDERLINE}Enter username:{TColors.ENDC}")
         s.sendall(username.encode())
 
         # take user input until 'exit' is entered

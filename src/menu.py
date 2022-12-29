@@ -54,7 +54,7 @@ def init_exchange(root: DirectoryNode, memory: Memory, conn: socket):
     }
 
 
-def user_input(connection: socket, root: DirectoryNode, memory: Memory, command: str, write_lock: LockType, cwd: DirectoryNode = None) -> DirectoryNode:
+def execute_command(connection: socket, root: DirectoryNode, memory: Memory, command: str, write_lock: LockType, cwd: DirectoryNode = None) -> DirectoryNode:
     currentDir = cwd if cwd else root
 
     command = command.strip()
